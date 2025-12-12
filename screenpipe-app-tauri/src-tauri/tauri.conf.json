@@ -1,127 +1,37 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "screenpipe",
-  "identifier": "screenpi.pe",
   "build": {
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build",
-    "frontendDist": "../out",
-    "devUrl": "http://localhost:3000"
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../dist",
+    "distDir": "../dist",
+    "binaryPath": "./target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe" // 显式指定二进制路径
   },
-  "bundle": {
-    "createUpdaterArtifacts": true,
-    "active": true,
-    "category": "DeveloperTool",
-    "copyright": "",
-    "targets": [
-      "app",
-      "dmg",
-      "deb",
-      "appimage",
-      "nsis"
-    ],
-    "externalBin": [],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/256x256.png",
-      "icons/512x512.png",
-      "icons/1024x1024.png",
-      "icons/icon.icns",
-      "icons/icon.ico",
-      "icons/screenpipe-logo-tray-failed.png",
-      "icons/screenpipe-logo-tray-black.png"
-    ],
-    "resources": [
-      "assets/*"
-    ]
+  "package": {
+    "productName": "screenpipe-x86_64-pc-windows-msvc", // 与二进制名称一致
+    "version": "0.44.4"
   },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "dialog": true,
-      "endpoints": [
-        "https://cdn.crabnebula.app/update/mediar/screenpipe/{{target}}-{{arch}}/{{current_version}}"
-      ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyQjQ2RkQzMUNBOUFDMTcKUldRWHJLa2MwMiswSWl3RlBGUW5zYUE0Zm0vNFFRRTltNUZZTUVxR2FxUDNtSWdUSHgyL3JNcmcK"
+  "tauri": {
+    "allowlist": {
+      "all": true
     },
-    "deep-link": {
-      "desktop": {
-        "schemes": [
-          "screenpipe"
-        ]
-      },
-      "mobile": [
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/auth"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/stripe-connect"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/purchase-successful"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/settings"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/changelog"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/onboarding"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/status"
-          ]
-        }
-      ]
-    }
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "trayIcon": {
-      "id": "screenpipe_main",
-      "iconPath": "assets/screenpipe-logo-tray-white.png",
-      "iconAsTemplate": true
+    "bundle": {
+      "active": true,
+      "targets": "msi",
+      "identifier": "com.screenpipe.app",
+      "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    },
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'"
     },
     "windows": [
       {
-        "title": "screenpipe",
-        "width": 1200,
-        "height": 850,
+        "title": "Screenpipe",
+        "width": 800,
+        "height": 600,
+        "center": true,
+        "fullscreen": false,
         "resizable": true
       }
-    ],
-    "security": {
-      "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "$APPDATA/**"
-        ]
-      },
-      "csp": null
-    },
-    "macOSPrivateApi": true
+    ]
   }
 }
