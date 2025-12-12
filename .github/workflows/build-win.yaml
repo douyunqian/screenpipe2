@@ -7,6 +7,11 @@ jobs:
     defaults:
       run:
         shell: pwsh
+    env:
+      # 全局环境变量：屏蔽 npm 冗余日志
+      NPM_CONFIG_LOGLEVEL: error
+      NPM_CONFIG_FUND: false
+      NPM_CONFIG_AUDIT: false
 
     steps:
       - name: Checkout repository
@@ -39,44 +44,47 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          choco install ffmpeg --no-progress --yes --ignore-checksums
-          npm install -g bun
+          # 静默安装 FFmpeg，忽略校验和
+          choco install ffmpeg --no-progress --yes --ignore-checksums --quiet
+          # 安装 Bun 并屏蔽日志
+          npm install -g bun --silent
           bun --version
 
-      - name: Install NPM dependencies (适配真实 Tauri 版本)
+      - name: Install NPM dependencies (强制解决依赖冲突)
         working-directory: screenpipe-app-tauri
         run: |
+          # 配置 npm 镜像，清理缓存
           npm config set registry https://registry.npmjs.org/
           npm cache clean --force
+          # 卸载旧版 Tauri 依赖
           npm uninstall @tauri-apps/cli @tauri-apps/api || true
-          # 核心修复：使用 Tauri 2.x 真实可用版本 2.0.0-rc.8
-          npm install @tauri-apps/cli@2.0.0-rc.8 @tauri-apps/api@2.0.0-rc.8 --save-exact --legacy-peer-deps
-          # 屏蔽资金/审计警告，强制解决依赖冲突
-          npm install --legacy-peer-deps --no-fund --no-audit --force
+          # 核心：使用 Tauri 2.x 稳定版 + 强制解决依赖冲突
+          npm install @tauri-apps/cli@next @tauri-apps/api@next --save-exact --legacy-peer-deps --force
+          # 静默安装所有依赖，屏蔽所有警告
+          npm install --legacy-peer-deps --no-fund --no-audit --force --silent
 
-      - name: Build Tauri binary (版本强对齐)
+      - name: Build Tauri binary (跳过版本锁定，自动适配)
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
+          # 清理缓存
           cargo clean
-          # 锁定与 NPM 端一致的 Rust 版本
-          cargo update -p tauri --precise 2.0.0-rc.8
-          cargo update -p tauri-build --precise 2.0.0-rc.8
-          cargo build --target x86_64-pc-windows-msvc --release --locked --no-incremental
-          # 产物验证
+          # 编译：禁用增量编译 + 静默输出
+          cargo build --target x86_64-pc-windows-msvc --release --locked --no-incremental --quiet
+          # 验证产物
           $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $exePath)) {
-              Write-Host "❌ 编译失败，打印详细日志："
+              Write-Host "❌ Tauri 二进制文件编译失败，打印详细日志："
               cargo build --target x86_64-pc-windows-msvc --release --verbose
               exit 1
           }
-          Write-Host "✅ 二进制文件编译成功：$exePath"
+          Write-Host "✅ Tauri 二进制文件编译成功：$exePath"
 
-      - name: Build MSI installer
+      - name: Build MSI installer (使用最新 CLI)
         working-directory: screenpipe-app-tauri
         run: |
-          # 使用匹配版本的 CLI 打包
-          npx tauri@2.0.0-rc.8 build --target x86_64-pc-windows-msvc --bundle msi
-          Write-Host "✅ MSI 打包完成！"
+          # 静默打包 MSI
+          npx tauri@next build --target x86_64-pc-windows-msvc --bundle msi --quiet
+          Write-Host "✅ MSI 安装包打包完成！"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
