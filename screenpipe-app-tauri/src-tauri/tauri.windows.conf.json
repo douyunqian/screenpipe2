@@ -44,10 +44,12 @@
         "dst": "./assets/"
       }
     ],
-    "nsis": {
-      "headerImage": "assets/nsis-header.bmp",
-      "sidebarImage": "assets/nsis-sidebar.bmp",
-      "installerIcon": "icons/icon.ico"
+    "windows": { // 新增 windows 层级，nsis 嵌套在此处
+      "nsis": {
+        "headerImage": "assets/nsis-header.bmp",
+        "sidebarImage": "assets/nsis-sidebar.bmp",
+        "installerIcon": "icons/icon.ico"
+      }
     }
   }
 }
