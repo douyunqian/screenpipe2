@@ -3,11 +3,10 @@
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "devPath": "../dist",
-    "distDir": "../dist",
-    "binaryPath": "./target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
+    "distDir": "../dist"
   },
   "package": {
-    "productName": "screenpipe-x86_64-pc-windows-msvc",
+    "productName": "screenpipe-app",
     "version": "0.44.4"
   },
   "tauri": {
