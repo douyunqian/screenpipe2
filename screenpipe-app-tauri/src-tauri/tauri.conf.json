@@ -2,6 +2,7 @@
   "$schema": "https://schema.tauri.app/2.0/schema.json",
   "productName": "screenpipe-app",
   "version": "0.44.4",
+  "identifier": "com.screenpipe.app", // 移到根字段（关键修正）
   "build": {
     "before-build-command": "",
     "before-dev-command": "",
@@ -10,7 +11,6 @@
   "bundle": {
     "active": true,
     "targets": "msi",
-    "identifier": "com.screenpipe.app",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   },
   "security": {
