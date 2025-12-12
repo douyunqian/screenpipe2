@@ -1,55 +1,53 @@
 {
-  "tauri": {
-    "bundle": {
-      "targets": ["nsis"],
-      "externalBin": ["screenpipe", "bun"],
-      "resources": [
-        {
-          "src": "ffmpeg/bin/ffmpeg.exe",
-          "dst": "./"
-        },
-        {
-          "src": "ffmpeg/bin/ffprobe.exe",
-          "dst": "./"
-        },
-        {
-          "src": "ffmpeg/bin/*.dll",
-          "dst": "./"
-        },
-        {
-          "src": "ffmpeg/lib/*",
-          "dst": "./"
-        },
-        {
-          "src": "onnxruntime*/lib/onnxruntime.dll",
-          "dst": "./"
-        },
-        {
-          "src": "onnxruntime*/lib/onnxruntime_providers_cuda.dll",
-          "dst": "./"
-        },
-        {
-          "src": "onnxruntime*/lib/onnxruntime_providers_shared.dll",
-          "dst": "./"
-        },
-        {
-          "src": "mkl/*.dll",
-          "dst": "./"
-        },
-        {
-          "src": "vcredist/*.dll",
-          "dst": "./"
-        },
-        {
-          "src": "assets/*",
-          "dst": "./assets/"
-        }
-      ],
-      "nsis": {
-        "headerImage": "assets/nsis-header.bmp",
-        "sidebarImage": "assets/nsis-sidebar.bmp",
-        "installerIcon": "icons/icon.ico"
+  "bundle": {
+    "targets": ["nsis"],
+    "externalBin": ["screenpipe", "bun"],
+    "resources": [
+      {
+        "src": "ffmpeg/bin/ffmpeg.exe",
+        "dst": "./"
+      },
+      {
+        "src": "ffmpeg/bin/ffprobe.exe",
+        "dst": "./"
+      },
+      {
+        "src": "ffmpeg/bin/*.dll",
+        "dst": "./"
+      },
+      {
+        "src": "ffmpeg/lib/*",
+        "dst": "./"
+      },
+      {
+        "src": "onnxruntime*/lib/onnxruntime.dll",
+        "dst": "./"
+      },
+      {
+        "src": "onnxruntime*/lib/onnxruntime_providers_cuda.dll",
+        "dst": "./"
+      },
+      {
+        "src": "onnxruntime*/lib/onnxruntime_providers_shared.dll",
+        "dst": "./"
+      },
+      {
+        "src": "mkl/*.dll",
+        "dst": "./"
+      },
+      {
+        "src": "vcredist/*.dll",
+        "dst": "./"
+      },
+      {
+        "src": "assets/*",
+        "dst": "./assets/"
       }
+    ],
+    "nsis": {
+      "headerImage": "assets/nsis-header.bmp",
+      "sidebarImage": "assets/nsis-sidebar.bmp",
+      "installerIcon": "icons/icon.ico"
     }
   }
 }
