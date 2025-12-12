@@ -48,37 +48,70 @@ jobs:
           npm install -g bun --silent
           bun --version
 
-      - name: Install NPM dependencies
+      - name: Install NPM dependencies（版本严格对齐 2.0.0）
         working-directory: screenpipe-app-tauri
         run: |
           Remove-Item -Path node_modules -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path package-lock.json -Force -ErrorAction SilentlyContinue
           npm cache clean --force
+          # 核心：CLI 版本与 Rust 端 tauri-build 完全一致（2.0.0）
           npm install @tauri-apps/cli@2.0.0 @tauri-apps/api@2.0.0 --save-exact --legacy-peer-deps --force
           npm install --legacy-peer-deps --no-fund --no-audit --force
-          npm link @tauri-apps/cli
+          # 验证 CLI 版本
+          $tauriVersion = npx tauri --version 2>&1
+          Write-Host "✅ Tauri CLI 版本：$tauriVersion"
+          if ($tauriVersion -notmatch "2.0.0") {
+              Write-Host "❌ Tauri CLI 版本不匹配，强制重装..."
+              npm install @tauri-apps/cli@2.0.0 --force --legacy-peer-deps
+          }
 
-      - name: 预编译二进制文件（关键：先生成 exe，再让 Tauri 打包）
+      - name: 验证 tauri.conf.json 语法
+        working-directory: screenpipe-app-tauri/src-tauri
+        run: |
+          try {
+              $config = Get-Content "tauri.conf.json" | ConvertFrom-Json
+              Write-Host "✅ tauri.conf.json 语法验证通过"
+          } catch {
+              Write-Host "❌ tauri.conf.json 语法错误：$_"
+              exit 1
+          }
+
+      - name: 更新 Rust 依赖（解决版本不兼容）
+        working-directory: screenpipe-app-tauri/src-tauri
+        run: |
+          # 关键：更新 cargo 依赖，确保 tauri-build 与 CLI 版本一致
+          cargo update -p tauri-build --precise 2.0.0
+          cargo update -p tauri --precise 2.0.0
+
+      - name: 编译二进制文件（Tauri 2.0.0 默认逻辑）
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
           cargo clean
-          # 先编译出 exe，确保 Tauri 构建脚本能找到
-          cargo build --target x86_64-pc-windows-msvc --release --locked --bin screenpipe-x86_64-pc-windows-msvc
-          $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
+          # 编译默认名称（screenpipe-app），无需指定 --bin（default-run 已定义）
+          cargo build --target x86_64-pc-windows-msvc --release --locked
+          $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-app.exe"
           if (-not (Test-Path $exePath)) {
-              Write-Host "❌ 预编译二进制文件失败"
+              Write-Host "❌ 二进制文件未生成，打印详细日志："
+              cargo build --target x86_64-pc-windows-msvc --release --verbose
               exit 1
           }
-          Write-Host "✅ 预编译二进制文件成功：$exePath"
+          Write-Host "✅ 二进制文件生成成功：$exePath"
           Get-ChildItem -Path $exePath
 
-      - name: 执行 Tauri 打包（依赖已生成的 exe）
+      - name: 执行 Tauri 打包（移除所有不支持的参数）
         working-directory: screenpipe-app-tauri
         run: |
           $tauriPath = "./node_modules/.bin/tauri.cmd"
-          # 禁用 Tauri 自动编译，仅打包已生成的 exe
-          & $tauriPath build --target x86_64-pc-windows-msvc --bundle msi --no-build --binary-path ./src-tauri/target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe
-          Write-Host "✅ MSI 安装包打包完成！"
+          # 核心：Tauri 2.0.0 不支持 --binary-path/--no-build，直接打包（依赖已编译的 exe）
+          & $tauriPath build --target x86_64-pc-windows-msvc --bundle msi
+          # 验证 MSI 是否生成
+          $msiPath = "./src-tauri/target/release/bundle/msi/*.msi"
+          if (-not (Test-Path $msiPath)) {
+              Write-Host "❌ MSI 安装包未生成"
+              exit 1
+          }
+          Write-Host "✅ MSI 安装包生成成功：$msiPath"
+          Get-ChildItem -Path $msiPath
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
