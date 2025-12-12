@@ -1,12 +1,11 @@
 {
+  "$schema": "https://schema.tauri.app/2.0/schema.json",
+  "productName": "screenpipe-app",
+  "version": "0.44.4",
   "build": {
-    "before-dev-command": "",
     "before-build-command": "",
+    "before-dev-command": "",
     "frontend-dist": "./dist"
-  },
-  "package": {
-    "productName": "screenpipe-app",
-    "version": "0.44.4"
   },
   "tauri": {
     "allowlist": {
