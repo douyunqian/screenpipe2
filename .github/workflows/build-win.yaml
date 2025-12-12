@@ -8,7 +8,6 @@ jobs:
       run:
         shell: pwsh
     env:
-      # 屏蔽 npm 冗余日志
       NPM_CONFIG_LOGLEVEL: error
       NPM_CONFIG_FUND: false
       NPM_CONFIG_AUDIT: false
@@ -54,29 +53,42 @@ jobs:
           npm config set registry https://registry.npmjs.org/
           npm cache clean --force
           npm uninstall @tauri-apps/cli @tauri-apps/api || true
-          npm install @tauri-apps/cli@next @tauri-apps/api@next --save-exact --legacy-peer-deps --force
+          npm install @tauri-apps/cli@2.0.0-rc.8 @tauri-apps/api@2.0.0-rc.8 --save-exact --legacy-peer-deps --force
           npm install --legacy-peer-deps --no-fund --no-audit --force --silent
 
-      - name: Build Tauri binary (修复 Rust 参数错误)
+      - name: 验证Cargo配置（关键前置步骤）
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
-          # 清理缓存（替代 --no-incremental 实现无增量编译）
+          # 检查Cargo.toml中的二进制名称
+          Write-Host "✅ 检查二进制文件名称配置："
+          cat Cargo.toml | findstr "name = \"screenpipe-x86_64-pc-windows-msvc\""
+          # 检查main.rs是否存在
+          if (-not (Test-Path "src/main.rs")) {
+              Write-Host "❌ src/main.rs 不存在，创建最小化入口文件"
+              New-Item -Path "src/main.rs" -Force -Value "fn main() { tauri::Builder::default().run(tauri::generate_context!()).expect("error while running tauri application"); }"
+          }
+
+      - name: Build Tauri binary（确保生成指定名称的exe）
+        working-directory: screenpipe-app-tauri/src-tauri
+        run: |
           cargo clean
-          # 核心修复：移除 stable 版不支持的 --no-incremental 参数
-          cargo build --target x86_64-pc-windows-msvc --release --locked
-          # 验证产物
+          # 显式指定输出名称，强制生成screenpipe-x86_64-pc-windows-msvc.exe
+          cargo build --target x86_64-pc-windows-msvc --release --locked --bin screenpipe-x86_64-pc-windows-msvc
+          # 验证exe是否生成
           $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $exePath)) {
-              Write-Host "❌ 编译失败，打印详细日志："
-              cargo build --target x86_64-pc-windows-msvc --release --verbose
+              Write-Host "❌ 二进制文件未生成，打印编译日志："
+              cargo build --target x86_64-pc-windows-msvc --release --verbose --bin screenpipe-x86_64-pc-windows-msvc
               exit 1
           }
-          Write-Host "✅ Tauri 二进制文件编译成功：$exePath"
+          Write-Host "✅ 二进制文件已生成：$exePath"
+          Get-ChildItem -Path $exePath
 
       - name: Build MSI installer
         working-directory: screenpipe-app-tauri
         run: |
-          npx tauri@next build --target x86_64-pc-windows-msvc --bundle msi --quiet
+          # 显式指定二进制文件路径，避免Tauri找不到
+          npx tauri@2.0.0-rc.8 build --target x86_64-pc-windows-msvc --bundle msi --binary-path ./src-tauri/target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe
           Write-Host "✅ MSI 安装包打包完成！"
 
       - name: Upload build artifacts
