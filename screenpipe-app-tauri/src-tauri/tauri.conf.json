@@ -4,10 +4,10 @@
     "beforeBuildCommand": "",
     "devPath": "../dist",
     "distDir": "../dist",
-    "binaryPath": "./target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe" // 显式指定二进制路径
+    "binaryPath": "./target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
   },
   "package": {
-    "productName": "screenpipe-x86_64-pc-windows-msvc", // 与二进制名称一致
+    "productName": "screenpipe-x86_64-pc-windows-msvc",
     "version": "0.44.4"
   },
   "tauri": {
