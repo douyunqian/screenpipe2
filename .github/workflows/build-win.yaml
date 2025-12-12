@@ -48,73 +48,36 @@ jobs:
           npm install -g bun --silent
           bun --version
 
-      - name: Install NPM dependencies (改用 Tauri 2.0.0 稳定版)
+      - name: Install NPM dependencies
         working-directory: screenpipe-app-tauri
         run: |
-          # 彻底清理残留依赖
           Remove-Item -Path node_modules -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item -Path package-lock.json -Force -ErrorAction SilentlyContinue
           npm cache clean --force
-
-          # 安装 Tauri 2.0.0 正式版（稳定无兼容问题）
           npm install @tauri-apps/cli@2.0.0 @tauri-apps/api@2.0.0 --save-exact --legacy-peer-deps --force
           npm install --legacy-peer-deps --no-fund --no-audit --force
-
-          # 强制链接 Tauri CLI 到全局（解决可执行文件问题）
           npm link @tauri-apps/cli
 
-          # 验证 Tauri CLI 是否真的可用
-          $tauriExec = Get-Command tauri -ErrorAction SilentlyContinue
-          if (-not $tauriExec) {
-              Write-Host "❌ Tauri CLI 未安装成功，手动指定路径执行"
-              $tauriPath = "./node_modules/.bin/tauri.cmd"
-              if (Test-Path $tauriPath) {
-                  & $tauriPath --version
-                  Write-Host "✅ 找到本地 Tauri CLI：$tauriPath"
-              } else {
-                  Write-Host "❌ Tauri CLI 完全未安装，退出"
-                  exit 1
-              }
-          } else {
-              tauri --version
-              Write-Host "✅ Tauri CLI 全局可用"
-          }
-
-      - name: 验证Cargo配置
-        working-directory: screenpipe-app-tauri/src-tauri
-        run: |
-          Write-Host "✅ 检查二进制文件名称配置："
-          Get-Content Cargo.toml | Select-String -Pattern 'name = "screenpipe-x86_64-pc-windows-msvc"'
-          if (-not (Test-Path "src/main.rs")) {
-              Write-Host "❌ src/main.rs 不存在，创建最小化入口文件"
-              $mainContent = 'fn main() { tauri::Builder::default().run(tauri::generate_context!()).expect("error while running tauri application"); }'
-              New-Item -Path "src/main.rs" -Force -Value $mainContent | Out-Null
-          }
-
-      - name: Build Tauri binary
+      - name: 预编译二进制文件（关键：先生成 exe，再让 Tauri 打包）
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
           cargo clean
+          # 先编译出 exe，确保 Tauri 构建脚本能找到
           cargo build --target x86_64-pc-windows-msvc --release --locked --bin screenpipe-x86_64-pc-windows-msvc
           $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $exePath)) {
-              Write-Host "❌ 二进制文件未生成，打印编译日志："
-              cargo build --target x86_64-pc-windows-msvc --release --verbose --bin screenpipe-x86_64-pc-windows-msvc
+              Write-Host "❌ 预编译二进制文件失败"
               exit 1
           }
-          Write-Host "✅ 二进制文件已生成：$exePath"
+          Write-Host "✅ 预编译二进制文件成功：$exePath"
           Get-ChildItem -Path $exePath
 
-      - name: Build MSI installer
+      - name: 执行 Tauri 打包（依赖已生成的 exe）
         working-directory: screenpipe-app-tauri
         run: |
-          # 优先使用本地 CLI 路径，避免全局命令问题
           $tauriPath = "./node_modules/.bin/tauri.cmd"
-          if (Test-Path $tauriPath) {
-              & $tauriPath build --target x86_64-pc-windows-msvc --bundle msi --binary-path ./src-tauri/target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe
-          } else {
-              tauri build --target x86_64-pc-windows-msvc --bundle msi --binary-path ./src-tauri/target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe
-          }
+          # 禁用 Tauri 自动编译，仅打包已生成的 exe
+          & $tauriPath build --target x86_64-pc-windows-msvc --bundle msi --no-build --binary-path ./src-tauri/target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe
           Write-Host "✅ MSI 安装包打包完成！"
 
       - name: Upload build artifacts
