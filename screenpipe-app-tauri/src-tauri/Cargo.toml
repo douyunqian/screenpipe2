@@ -9,6 +9,11 @@ default-run = "screenpipe-app"
 edition = "2021"
 rust-version = "1.84"
 
+# 核心新增：定义二进制文件名称（必须与 Tauri 期望的一致）
+[[bin]]
+name = "screenpipe-x86_64-pc-windows-msvc"
+path = "src/main.rs"  # 确保 src/main.rs 是项目入口文件
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
@@ -60,7 +65,6 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-appender = "0.2.3"
 
-
 anyhow = "1.0.71"
 
 # System information
@@ -72,8 +76,6 @@ fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 # server
 axum = "0.6.0" # or your current version
 axum-macros = "0.5.0"
-
-
 
 dirs = "5.0.1"
 tauri-plugin-deep-link = "=2.4.5"
@@ -107,7 +109,6 @@ core-graphics-helmer-fork = "0.24.0"
 nokhwa-bindings-macos = { git = "https://github.com/CapSoftware/nokhwa", rev = "0d3d1f30a78b" }
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2" }
 
-
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.52.0"
 lazy_static = "1.5.0"
@@ -126,7 +127,6 @@ image = "0.25.5"
 futures-channel = "0.3.30"
 lazy_static = "1.5.0"
 
-
 [features]
 cudart = []
 metal = []
@@ -137,7 +137,6 @@ default = ["custom-protocol"]
 
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
-
 
 [package.metadata.cargo-machete]
 ignored = ["tauri-utils"]
