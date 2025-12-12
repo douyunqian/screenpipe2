@@ -11,7 +11,6 @@ jobs:
       NPM_CONFIG_LOGLEVEL: error
       NPM_CONFIG_FUND: false
       NPM_CONFIG_AUDIT: false
-      # 全局屏蔽 peer 依赖检查
       NPM_CONFIG_LEGACY_PEER_DEPS: true
 
     steps:
@@ -55,25 +54,34 @@ jobs:
           # 强制清理缓存
           npm cache clean --force
           # 卸载旧 Tauri 依赖（容错）
-          npm uninstall @tauri-apps/cli @tauri-apps/api || exit 0
+          npm uninstall @tauri-apps/cli @tauri-apps/api 2>&1 | Out-Null
           # 核心：组合 --force + --legacy-peer-deps，强制安装并忽略所有冲突
-          npm install @tauri-apps/cli@2.8.3 @tauri-apps/api@2.8.3 --save-exact --legacy-peer-deps --force || exit 0
-          # 安装所有依赖，即使有冲突也返回 0 退出码
-          npm install --legacy-peer-deps --no-fund --no-audit --force --silent || exit 0
-          # 验证 Tauri CLI 是否安装成功（关键兜底）
-          if ! npx tauri --version > $null 2>&1; then
-              Write-Host "❌ Tauri CLI 安装失败，重试安装..."
-              npm install @tauri-apps/cli@2.8.3 --force --legacy-peer-deps
-          fi
+          npm install @tauri-apps/cli@2.8.3 @tauri-apps/api@2.8.3 --save-exact --legacy-peer-deps --force 2>&1 | Out-Null
+          # 安装所有依赖，即使有冲突也不中断
+          npm install --legacy-peer-deps --no-fund --no-audit --force --silent 2>&1 | Out-Null
+          # 验证 Tauri CLI 是否安装成功（PowerShell 原生语法）
+          try {
+              $tauriVersion = npx tauri --version 2>&1
+              if (-not $tauriVersion) {
+                  Write-Host "❌ Tauri CLI 安装失败，重试安装..."
+                  npm install @tauri-apps/cli@2.8.3 --force --legacy-peer-deps 2>&1 | Out-Null
+              } else {
+                  Write-Host "✅ Tauri CLI 安装成功，版本：$tauriVersion"
+              }
+          } catch {
+              Write-Host "❌ Tauri CLI 校验失败，重试安装..."
+              npm install @tauri-apps/cli@2.8.3 --force --legacy-peer-deps 2>&1 | Out-Null
+          }
 
       - name: 验证Cargo配置
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
           Write-Host "✅ 检查二进制文件名称配置："
-          cat Cargo.toml | findstr "name = \"screenpipe-x86_64-pc-windows-msvc\""
+          Get-Content Cargo.toml | Select-String -Pattern 'name = "screenpipe-x86_64-pc-windows-msvc"'
           if (-not (Test-Path "src/main.rs")) {
               Write-Host "❌ src/main.rs 不存在，创建最小化入口文件"
-              New-Item -Path "src/main.rs" -Force -Value "fn main() { tauri::Builder::default().run(tauri::generate_context!()).expect("error while running tauri application"); }"
+              $mainContent = 'fn main() { tauri::Builder::default().run(tauri::generate_context!()).expect("error while running tauri application"); }'
+              New-Item -Path "src/main.rs" -Force -Value $mainContent | Out-Null
           }
 
       - name: Build Tauri binary
