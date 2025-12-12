@@ -2,8 +2,8 @@
   "build": {
     "before-dev-command": "",
     "before-build-command": "",
-    "dev-url": "../dist",
-    "frontend-dist": "../dist"
+    "dev-url": "./dist",
+    "frontend-dist": "./dist"
   },
   "package": {
     "productName": "screenpipe-app",
