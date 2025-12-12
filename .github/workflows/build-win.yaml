@@ -8,7 +8,7 @@ jobs:
       run:
         shell: pwsh
     env:
-      # 全局环境变量：屏蔽 npm 冗余日志
+      # 屏蔽 npm 冗余日志
       NPM_CONFIG_LOGLEVEL: error
       NPM_CONFIG_FUND: false
       NPM_CONFIG_AUDIT: false
@@ -44,45 +44,38 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          # 静默安装 FFmpeg，忽略校验和
           choco install ffmpeg --no-progress --yes --ignore-checksums --quiet
-          # 安装 Bun 并屏蔽日志
           npm install -g bun --silent
           bun --version
 
-      - name: Install NPM dependencies (强制解决依赖冲突)
+      - name: Install NPM dependencies
         working-directory: screenpipe-app-tauri
         run: |
-          # 配置 npm 镜像，清理缓存
           npm config set registry https://registry.npmjs.org/
           npm cache clean --force
-          # 卸载旧版 Tauri 依赖
           npm uninstall @tauri-apps/cli @tauri-apps/api || true
-          # 核心：使用 Tauri 2.x 稳定版 + 强制解决依赖冲突
           npm install @tauri-apps/cli@next @tauri-apps/api@next --save-exact --legacy-peer-deps --force
-          # 静默安装所有依赖，屏蔽所有警告
           npm install --legacy-peer-deps --no-fund --no-audit --force --silent
 
-      - name: Build Tauri binary (跳过版本锁定，自动适配)
+      - name: Build Tauri binary (修复 Rust 参数错误)
         working-directory: screenpipe-app-tauri/src-tauri
         run: |
-          # 清理缓存
+          # 清理缓存（替代 --no-incremental 实现无增量编译）
           cargo clean
-          # 编译：禁用增量编译 + 静默输出
-          cargo build --target x86_64-pc-windows-msvc --release --locked --no-incremental --quiet
+          # 核心修复：移除 stable 版不支持的 --no-incremental 参数
+          cargo build --target x86_64-pc-windows-msvc --release --locked
           # 验证产物
           $exePath = "target/x86_64-pc-windows-msvc/release/screenpipe-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $exePath)) {
-              Write-Host "❌ Tauri 二进制文件编译失败，打印详细日志："
+              Write-Host "❌ 编译失败，打印详细日志："
               cargo build --target x86_64-pc-windows-msvc --release --verbose
               exit 1
           }
           Write-Host "✅ Tauri 二进制文件编译成功：$exePath"
 
-      - name: Build MSI installer (使用最新 CLI)
+      - name: Build MSI installer
         working-directory: screenpipe-app-tauri
         run: |
-          # 静默打包 MSI
           npx tauri@next build --target x86_64-pc-windows-msvc --bundle msi --quiet
           Write-Host "✅ MSI 安装包打包完成！"
 
