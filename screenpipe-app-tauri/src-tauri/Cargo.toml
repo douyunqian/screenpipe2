@@ -5,7 +5,7 @@ description = ""
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "screenpipe-app"
+default-run = "screenpipe-x86_64-pc-windows-msvc"
 edition = "2021"
 rust-version = "1.84"
 
