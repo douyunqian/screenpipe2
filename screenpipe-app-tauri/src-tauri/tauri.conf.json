@@ -7,9 +7,6 @@
     "before-dev-command": "",
     "frontend-dist": "./dist"
   },
-  "allowlist": {
-    "all": true
-  },
   "bundle": {
     "active": true,
     "targets": "msi",
