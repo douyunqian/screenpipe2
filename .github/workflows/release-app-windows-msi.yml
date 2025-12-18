@@ -165,10 +165,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 11. 清理构建缓存（可选，节省空间）
+      # 11. 清理构建缓存（修复：使用官方原生命令，移除第三方依赖）
       - name: Cleanup Build Cache
-        if: always()
+        if: always()  # 无论前面步骤是否成功，都执行清理
         run: |
-          cargo cache clean --git
+          # 1. Rust 缓存清理（官方原生方式）
+          # 删除 Cargo 构建缓存（target 目录）
+          Remove-Item -Recurse -Force ./screenpipe-app-tauri/src-tauri/target -ErrorAction SilentlyContinue
+          # 删除用户级 Cargo 缓存中的旧包（保留核心依赖）
+          Remove-Item -Recurse -Force $env:USERPROFILE\.cargo\registry\cache\* -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force $env:USERPROFILE\.cargo\git\db\* -ErrorAction SilentlyContinue
+          
+          # 2. Bun 缓存清理（原生命令，保留）
           bun cache clean
+          
+          # 3. 清理 vcpkg 临时缓存（可选）
+          Remove-Item -Recurse -Force $env:VCPKG_ROOT\buildtrees -ErrorAction SilentlyContinue
         shell: pwsh
