@@ -19,11 +19,12 @@ console.log('cwd', cwd)
 
 const config = {
 	ffmpegRealname: 'ffmpeg',
-	windows: {
-		ffmpegName: 'ffmpeg-7.0.2-full_build-shared',
-		ffmpegUrl: 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-7.0.2-full_build-shared.7z',
-		vcpkgPackages: ['opencl', 'onnxruntime-gpu'],
-	},
+	  windows: {
+	    // 推荐使用官方镜像或稳定版本（示例：FFmpeg 7.1 版本）
+	    ffmpegUrl: "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z",
+	    ffmpegName: "ffmpeg",
+	    ffmpegRealname: "./ffmpeg.exe"
+	  }
 	linux: {
 		aptPackages: [
 			'tesseract-ocr',
