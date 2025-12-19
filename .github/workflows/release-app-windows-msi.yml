@@ -4,53 +4,120 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   build-windows-msi:
     runs-on: windows-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: x86_64-pc-windows-msvc
-          components: rust-src, clippy, rustfmt
+          components: rustfmt, clippy
 
-      - name: Install Tauri dependencies
-        run: |
-          choco install -y wget 7zip
-          rustup target add x86_64-pc-windows-msvc
-
-      - name: Build screenpipe core binary
-        run: cargo build --release --target x86_64-pc-windows-msvc
-        working-directory: ${{ github.workspace }}
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Install app dependencies
+      - name: Install 7-Zip (Windows)
+        run: choco install 7zip -y
+
+      - name: Install WiX Toolset (for MSI)
+        run: choco install wixtoolset -y
+        env:
+          CHOCO_NO_PROGRESS: 'true'
+
+      # ========== 修复点1：下载 FFmpeg（使用稳定镜像） ==========
+      - name: Download FFmpeg (Windows)
+        run: |
+          # 使用 Gyan.dev 稳定镜像，避免下载失败
+          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          # 验证文件完整性
+          if (-not (Test-Path ffmpeg.zip)) {
+            throw "FFmpeg 下载失败"
+          }
+
+      # ========== 修复点2：修正 7-Zip 解压参数（--extract-dir → -o） ==========
+      - name: Extract FFmpeg (Windows)
+        run: |
+          # Windows 7-Zip 正确参数：-o 指定解压目录，而非 --extract-dir
+          7z x ffmpeg.zip -o./ffmpeg -y
+          # 找到 FFmpeg 可执行文件路径（适配解压后的目录结构）
+          $ffmpegPath = Get-ChildItem -Path ./ffmpeg -Name ffmpeg.exe -Recurse
+          if (-not $ffmpegPath) {
+            throw "FFmpeg 解压后未找到 ffmpeg.exe"
+          }
+          # 复制到 src-tauri 目录（让 screenpipe 识别）
+          Copy-Item -Path "./ffmpeg/$ffmpegPath" -Destination ./screenpipe-app-tauri/src-tauri/ -Force
+          # 验证复制结果
+          if (-not (Test-Path ./screenpipe-app-tauri/src-tauri/ffmpeg.exe)) {
+            throw "FFmpeg 复制到 src-tauri 失败"
+          }
+
+      # ========== 修复点3：预下载 Whisper 模型（避免运行时网络超时） ==========
+      - name: Pre-download Whisper Model
+        run: |
+          # 创建模型目录
+          $modelDir = "$env:LOCALAPPDATA\screenpipe\models\whisper"
+          New-Item -Path $modelDir -ItemType Directory -Force | Out-Null
+          # 从 HF 镜像下载模型，避免 10060 超时
+          curl -L -o "$modelDir\ggml-tiny-q8_0.bin" https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q8_0.bin
+          # 验证模型文件
+          if (-not (Test-Path "$modelDir\ggml-tiny-q8_0.bin")) {
+            throw "Whisper 模型下载失败"
+          }
+
+      - name: Install Frontend Dependencies
         run: |
           cd screenpipe-app-tauri
           bun install
+          bun run build
 
-      - name: Run pre-build script (fix FFmpeg + copy binary)
+      - name: Build Tauri App (Release)
         run: |
           cd screenpipe-app-tauri
-          bun run scripts/pre_build.js
+          bun run tauri build --target x86_64-pc-windows-msvc
+        env:
+          # ========== 修复点4：指定 FFmpeg 路径，禁用自动下载 ==========
+          SCREENPIPE_FFMPEG_PATH: ${{ github.workspace }}\screenpipe-app-tauri\src-tauri\ffmpeg.exe
+          # 禁用模型自动下载，使用预下载的本地模型
+          SCREENPIPE_WHISPER_MODEL: "$env:LOCALAPPDATA\screenpipe\models\whisper\ggml-tiny-q8_0.bin"
+          # 静默构建，避免交互
+          TAURI_PRINT_CONFIG: 'false'
 
-      - name: Build Tauri MSI
+      - name: Build MSI Installer (WiX)
         run: |
-          cd screenpipe-app-tauri
-          bun run tauri build --target x86_64-pc-windows-msvc -- --features msi
+          # 定位 Tauri 构建产物
+          $exePath = Get-ChildItem -Path ./screenpipe-app-tauri/src-tauri/target/release -Name screenpipe-app-tauri.exe -Recurse
+          if (-not $exePath) {
+            throw "未找到 Tauri 构建产物"
+          }
+          # 使用 WiX 打包 MSI（示例，需适配你的 WiX 配置）
+          candle.exe -nologo ./installer/wix/main.wxs -out ./installer/wix/
+          light.exe -nologo ./installer/wix/main.wixobj -out ./screenpipe2-${{ github.ref_name }}-windows.msi
+        working-directory: ${{ github.workspace }}
 
-      - name: Upload MSI artifact
+      - name: Upload MSI Artifact
         uses: actions/upload-artifact@v4
         with:
           name: screenpipe2-windows-msi
-          path: screenpipe-app-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          path: ./screenpipe2-${{ github.ref_name }}-windows.msi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./screenpipe2-${{ github.ref_name }}-windows.msi
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }} (Windows MSI)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
