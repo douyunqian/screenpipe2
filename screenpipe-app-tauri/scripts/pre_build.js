@@ -20,8 +20,8 @@ console.log('cwd', cwd)
 const config = {
 	ffmpegRealname: platform === 'windows' ? "./ffmpeg.exe" : 'ffmpeg',
 	windows: {
-		// 修复：替换为有效 FFmpeg 下载链接
-		ffmpegUrl: "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z",
+		// 修复：替换为结构更稳定的 FFmpeg 下载链接（避免目录混乱）
+		ffmpegUrl: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z",
 		ffmpegName: "ffmpeg",
 		ffmpegRealname: "./ffmpeg.exe"
 	},
@@ -57,6 +57,24 @@ const config = {
 	},
 }
 
+// 新增：递归遍历目录查找指定文件（兜底逻辑）
+async function findFileRecursive(dir, filename) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    // 找到目标文件
+    if (entry.isFile() && entry.name.toLowerCase() === filename.toLowerCase()) {
+      return fullPath;
+    }
+    // 递归查找子目录
+    if (entry.isDirectory()) {
+      const found = await findFileRecursive(fullPath, filename);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 // 修复：封装 FFmpeg 下载逻辑（含备用链接）
 async function downloadFFmpeg(wgetPath) {
   try {
@@ -64,8 +82,8 @@ async function downloadFFmpeg(wgetPath) {
     await $`${wgetPath} --no-config --tries=10 --retry-connrefused --waitretry=10 --secure-protocol=auto --no-check-certificate --show-progress ${config.windows.ffmpegUrl} -O ${config.windows.ffmpegName}.7z`;
   } catch (e) {
     console.error("FFmpeg 主链接下载失败，尝试备用链接...");
-    // 备用链接（GitHub 镜像）
-    const fallbackUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z";
+    // 备用链接（Gyan.dev 版本）
+    const fallbackUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z";
     await $`${wgetPath} --no-config --tries=5 --show-progress ${fallbackUrl} -O ${config.windows.ffmpegName}.7z`;
   }
 }
@@ -285,7 +303,7 @@ if (platform == 'linux') {
 		// process.exit(1);
 	}
 
-	// Setup FFMPEG (Linux 原生逻辑，删除混入的 Windows 代码)
+	// Setup FFMPEG (Linux 原生逻辑)
 	if (!(await fs.exists(config.ffmpegRealname))) {
 		await $`wget --no-config -nc ${config.linux.ffmpegUrl} -O ${config.linux.ffmpegName}.tar.xz`
 		await $`tar xf ${config.linux.ffmpegName}.tar.xz`
@@ -347,25 +365,32 @@ if (platform == 'windows') {
 	if (!copied) {
 		console.error("Failed to copy screenpipe binary from any potential path.");
 		console.error("Checked paths:", potentialPaths);
-		// 取消注释以强制构建失败（建议开启，避免后续步骤无意义执行）
 		process.exit(1);
 	}
 
-	// Setup FFMPEG (修复 7z 命令，删除 --extract-dir 无效参数)
+	// Setup FFMPEG（核心修复：扩展路径+递归查找）
 	if (!(await fs.exists(config.windows.ffmpegRealname))) {
 	  await downloadFFmpeg(wgetPath);
-	  // 修复：完善解压逻辑，使用 7z 正确语法
 	  try {
-	    // 第一步：解压 7z 包到 ./ffmpeg 目录（7z 正确语法：-o后无空格，添加 -y 自动覆盖）
+	    // 第一步：解压 7z 包到 ./ffmpeg 目录（7z 正确语法）
 	    console.log(`开始解压 FFmpeg：7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`);
 	    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`;
 	    
-	    // 第二步：兼容不同压缩包的目录结构，查找 ffmpeg.exe
+	    // 第二步：打印解压目录结构（便于调试）
+	    console.log('解压目录结构：');
+	    await $`dir ./ffmpeg /s /b`;
+
+	    // 第三步：扩展预设查找路径（覆盖更多常见结构）
 	    const possibleFfmpegPaths = [
-	      "./ffmpeg/bin/ffmpeg.exe",          // 标准结构
-	      "./ffmpeg/ffmpeg.exe",              // 扁平结构
-	      `./ffmpeg/${config.windows.ffmpegName}/bin/ffmpeg.exe` // 带版本号的结构
+	      "./ffmpeg/bin/ffmpeg.exe",                // 标准结构
+	      "./ffmpeg/ffmpeg.exe",                    // 扁平结构
+	      "./ffmpeg/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe", // BtbN 镜像结构
+	      "./ffmpeg/ffmpeg-release-full-shared/bin/ffmpeg.exe", // Gyan.dev 结构
+	      "./ffmpeg/win64/bin/ffmpeg.exe",          // 其他常见结构
+	      "./ffmpeg/x86_64/bin/ffmpeg.exe",         // 其他常见结构
 	    ];
+
+	    // 第四步：先尝试预设路径
 	    let ffmpegBinPath = null;
 	    for (const p of possibleFfmpegPaths) {
 	      if (await fs.exists(p)) {
@@ -374,15 +399,28 @@ if (platform == 'windows') {
 	      }
 	    }
 
+	    // 第五步：预设路径找不到，递归遍历解压目录（兜底逻辑）
 	    if (!ffmpegBinPath) {
-	      throw new Error(`解压后未找到 ffmpeg.exe，检查路径：${possibleFfmpegPaths.join(", ")}`);
+	      console.log('预设路径未找到 ffmpeg.exe，开始递归遍历解压目录...');
+	      ffmpegBinPath = await findFileRecursive("./ffmpeg", "ffmpeg.exe");
 	    }
 
-	    // 第三步：复制 ffmpeg.exe 到目标位置
+	    // 第六步：最终检查
+	    if (!ffmpegBinPath) {
+	      throw new Error(`
+解压后未找到 ffmpeg.exe！
+已尝试的预设路径：${possibleFfmpegPaths.join(", ")}
+也已递归遍历 ./ffmpeg 目录，但未找到。
+请检查 FFmpeg 压缩包是否完整，或更换下载链接。
+	      `);
+	    }
+
+	    // 第七步：复制 ffmpeg.exe 到目标位置
+	    console.log(`✅ 找到 FFmpeg：${ffmpegBinPath}`);
 	    await fs.copyFile(ffmpegBinPath, config.windows.ffmpegRealname);
 	    console.log(`✅ FFmpeg 复制成功：${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
 
-	    // 第四步：清理临时文件（可选，减少冗余）
+	    // 第八步：清理临时文件
 	    await fs.rm("./ffmpeg", { recursive: true, force: true });
 	    await fs.rm(`${config.windows.ffmpegName}.7z`, { force: true });
 	  } catch (e) {
@@ -457,7 +495,6 @@ if (platform == 'macos') {
 	}
 
   // Setup ffmpeg and ffprobe for both arm64 and x86_64
-  // ref: https://github.com/nathanbabcock/ffmpeg-sidecar/blob/b0ab2e1233451f219e302bf78cbbb6a5a8e85aa4/src/download.rs#L31
   if (!(await fs.exists(`ffmpeg-aarch64-apple-darwin`))) {
     await $`wget --no-config ${config.macos.ffmpegUrlArm} -O ffmpeg-aarch64.zip`;
     await $`unzip -o ffmpeg-aarch64.zip -d ffmpeg-aarch64`;
@@ -508,10 +545,6 @@ if (platform == 'macos') {
 			// Compile directly to the final destination
 			await $`swiftc -O -whole-module-optimization -enforce-exclusivity=unchecked -num-threads 8 -target ${arch}-apple-macos11.0 -o ${outputPath} ${swiftSrc} -framework Cocoa -framework ApplicationServices -framework Foundation`;
 
-			// Sign with ad-hoc signature first - this ensures the binary is at least signed
-			// Tauri will re-sign it later with the proper identity
-			// await $`codesign --force --sign - ${outputPath}`;
-
 			console.log(`Swift UI monitor for ${arch} compiled successfully`);
 			await fs.chmod(outputPath, 0o755);
 		}
@@ -519,7 +552,7 @@ if (platform == 'macos') {
 		console.error('Error setting up Swift UI monitoring:', error);
 		console.log('Current working directory:', cwd);
 		console.log('Expected Swift source path:', path.join(cwd, '../../screenpipe-vision/src/ui_monitoring_macos.swift'));
-		throw error; // Rethrow to fail the build if Swift compilation fails
+		throw error;
 	}
 }
 
@@ -547,7 +580,7 @@ if (process.env.GITHUB_ENV) {
 		await fs.appendFile(process.env.GITHUB_ENV, ffmpeg)
 	}
 	if (platform == 'macos') {
-		const embed_metal = 'WHISPER_METAL_EMBED_LIBRARY=ON\n' // 补全换行符，避免ENV拼接错误
+		const embed_metal = 'WHISPER_METAL_EMBED_LIBRARY=ON\n'
 		await fs.appendFile(process.env.GITHUB_ENV, embed_metal)
 	}
 	if (platform == 'windows') {
@@ -562,7 +595,7 @@ await copyBunBinary();
 
 // --dev or --build
 const action = process.argv?.[2]
-if (action?.includes('--build') || action?.includes('--dev')) { // 修复：逻辑运算符错误
+if (action?.includes('--build') || action?.includes('--dev')) {
 	process.chdir(path.join(cwd, '..'))
 	process.env['FFMPEG_DIR'] = exports.ffmpeg
 	if (platform === 'windows') {
