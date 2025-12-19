@@ -20,8 +20,8 @@ console.log('cwd', cwd)
 const config = {
 	ffmpegRealname: platform === 'windows' ? "./ffmpeg.exe" : 'ffmpeg',
 	windows: {
-		// 修复：替换为结构更稳定的 FFmpeg 下载链接（避免目录混乱）
-		ffmpegUrl: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z",
+		// 适配实际下载的 8.0.1 版本压缩包
+		ffmpegUrl: "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z",
 		ffmpegName: "ffmpeg",
 		ffmpegRealname: "./ffmpeg.exe"
 	},
@@ -59,20 +59,39 @@ const config = {
 
 // 新增：递归遍历目录查找指定文件（兜底逻辑）
 async function findFileRecursive(dir, filename) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    // 找到目标文件
-    if (entry.isFile() && entry.name.toLowerCase() === filename.toLowerCase()) {
-      return fullPath;
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      // 找到目标文件
+      if (entry.isFile() && entry.name.toLowerCase() === filename.toLowerCase()) {
+        return fullPath;
+      }
+      // 递归查找子目录（跳过符号链接，避免循环）
+      if (entry.isDirectory() && !entry.isSymbolicLink()) {
+        const found = await findFileRecursive(fullPath, filename);
+        if (found) return found;
+      }
     }
-    // 递归查找子目录
-    if (entry.isDirectory()) {
-      const found = await findFileRecursive(fullPath, filename);
-      if (found) return found;
-    }
+  } catch (e) {
+    console.warn(`遍历目录 ${dir} 时出错：${e.message}`);
   }
   return null;
+}
+
+// 新增：跨平台打印目录结构（替换不兼容的 dir 命令）
+async function printDirectoryStructure(dir) {
+  try {
+    if (platform === 'windows') {
+      // Windows 原生 dir 命令（适配 PowerShell/CMD）
+      await $`cmd /c dir "${dir}" /s /b`;
+    } else {
+      // Linux/macOS 使用 ls
+      await $`ls -R "${dir}"`;
+    }
+  } catch (e) {
+    console.warn(`打印目录结构失败（非关键错误）：${e.message}`);
+  }
 }
 
 // 修复：封装 FFmpeg 下载逻辑（含备用链接）
@@ -82,8 +101,8 @@ async function downloadFFmpeg(wgetPath) {
     await $`${wgetPath} --no-config --tries=10 --retry-connrefused --waitretry=10 --secure-protocol=auto --no-check-certificate --show-progress ${config.windows.ffmpegUrl} -O ${config.windows.ffmpegName}.7z`;
   } catch (e) {
     console.error("FFmpeg 主链接下载失败，尝试备用链接...");
-    // 备用链接（Gyan.dev 版本）
-    const fallbackUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z";
+    // 备用链接（BtbN 镜像，结构更稳定）
+    const fallbackUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z";
     await $`${wgetPath} --no-config --tries=5 --show-progress ${fallbackUrl} -O ${config.windows.ffmpegName}.7z`;
   }
 }
@@ -368,26 +387,32 @@ if (platform == 'windows') {
 		process.exit(1);
 	}
 
-	// Setup FFMPEG（核心修复：扩展路径+递归查找）
+	// Setup FFMPEG（最终版修复：适配 8.0.1 目录结构 + 跨平台命令）
 	if (!(await fs.exists(config.windows.ffmpegRealname))) {
 	  await downloadFFmpeg(wgetPath);
 	  try {
 	    // 第一步：解压 7z 包到 ./ffmpeg 目录（7z 正确语法）
 	    console.log(`开始解压 FFmpeg：7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`);
-	    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`;
+	    const extractResult = await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`;
+	    console.log(`解压结果：${extractResult.stdout}`);
 	    
-	    // 第二步：打印解压目录结构（便于调试）
-	    console.log('解压目录结构：');
-	    await $`dir ./ffmpeg /s /b`;
+	    // 第二步：跨平台打印解压目录结构（修复 dir 命令不兼容问题）
+	    console.log('=== 解压目录结构 ===');
+	    await printDirectoryStructure("./ffmpeg");
 
-	    // 第三步：扩展预设查找路径（覆盖更多常见结构）
+	    // 第三步：精准适配 8.0.1 版本的目录结构 + 扩展所有常见结构
 	    const possibleFfmpegPaths = [
-	      "./ffmpeg/bin/ffmpeg.exe",                // 标准结构
-	      "./ffmpeg/ffmpeg.exe",                    // 扁平结构
-	      "./ffmpeg/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe", // BtbN 镜像结构
-	      "./ffmpeg/ffmpeg-release-full-shared/bin/ffmpeg.exe", // Gyan.dev 结构
-	      "./ffmpeg/win64/bin/ffmpeg.exe",          // 其他常见结构
-	      "./ffmpeg/x86_64/bin/ffmpeg.exe",         // 其他常见结构
+	      // 适配你实际的 8.0.1 版本结构
+	      "./ffmpeg/ffmpeg-8.0.1-full_build-shared/bin/ffmpeg.exe",
+	      // 兼容其他版本的 Gyan.dev 结构
+	      "./ffmpeg/ffmpeg-release-full-shared/bin/ffmpeg.exe",
+	      // BtbN 镜像结构
+	      "./ffmpeg/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe",
+	      // 通用结构
+	      "./ffmpeg/bin/ffmpeg.exe",
+	      "./ffmpeg/ffmpeg.exe",
+	      "./ffmpeg/win64/bin/ffmpeg.exe",
+	      "./ffmpeg/x86_64/bin/ffmpeg.exe",
 	    ];
 
 	    // 第四步：先尝试预设路径
@@ -395,36 +420,43 @@ if (platform == 'windows') {
 	    for (const p of possibleFfmpegPaths) {
 	      if (await fs.exists(p)) {
 	        ffmpegBinPath = p;
+	        console.log(`✅ 预设路径找到 FFmpeg：${p}`);
 	        break;
 	      }
 	    }
 
 	    // 第五步：预设路径找不到，递归遍历解压目录（兜底逻辑）
 	    if (!ffmpegBinPath) {
-	      console.log('预设路径未找到 ffmpeg.exe，开始递归遍历解压目录...');
+	      console.log('⚠️ 预设路径未找到，开始递归遍历解压目录...');
 	      ffmpegBinPath = await findFileRecursive("./ffmpeg", "ffmpeg.exe");
 	    }
 
 	    // 第六步：最终检查
 	    if (!ffmpegBinPath) {
 	      throw new Error(`
-解压后未找到 ffmpeg.exe！
-已尝试的预设路径：${possibleFfmpegPaths.join(", ")}
+❌ 未找到 ffmpeg.exe！
+已尝试的预设路径：
+${possibleFfmpegPaths.join("\n")}
 也已递归遍历 ./ffmpeg 目录，但未找到。
-请检查 FFmpeg 压缩包是否完整，或更换下载链接。
+请检查：
+1. FFmpeg 压缩包是否完整（重新下载）；
+2. 压缩包内是否包含 ffmpeg.exe（手动解压验证）。
 	      `);
 	    }
 
 	    // 第七步：复制 ffmpeg.exe 到目标位置
-	    console.log(`✅ 找到 FFmpeg：${ffmpegBinPath}`);
+	    console.log(`✅ 最终找到 FFmpeg：${ffmpegBinPath}`);
 	    await fs.copyFile(ffmpegBinPath, config.windows.ffmpegRealname);
 	    console.log(`✅ FFmpeg 复制成功：${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
 
 	    // 第八步：清理临时文件
 	    await fs.rm("./ffmpeg", { recursive: true, force: true });
 	    await fs.rm(`${config.windows.ffmpegName}.7z`, { force: true });
+	    console.log('✅ 临时文件清理完成');
 	  } catch (e) {
 	    console.error("❌ FFmpeg 解压/复制失败:", e.message);
+	    // 打印错误堆栈（便于调试）
+	    console.error(e.stack);
 	    process.exit(1);
 	  }
 	} else {
