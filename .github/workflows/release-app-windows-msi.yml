@@ -1,4 +1,4 @@
-name: Release Windows MSI
+name: Release Windows EXE  # 修复1：修改工作流名称，明确是EXE
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows-msi:
+  build-windows-exe:  # 修复2：修改job名称，对应EXE
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -22,7 +22,7 @@ jobs:
 
       - name: Install Tauri dependencies
         run: |
-          choco install -y wget 7zip
+          choco install -y wget 7zip  # 保留wget/7zip（用于FFmpeg下载解压）
           rustup target add x86_64-pc-windows-msvc
 
       - name: Build screenpipe core binary
@@ -39,19 +39,21 @@ jobs:
           cd screenpipe-app-tauri
           bun install
 
-      # 核心修复：指定正确的 pre_build.js 路径
+      # 核心修复：指定正确的 pre_build.js 路径（保留，FFmpeg依赖）
       - name: Run pre-build script (fix FFmpeg + copy binary)
         run: |
           cd screenpipe-app-tauri
-          bun run scripts/pre_build.js # 关键：加上 scripts/ 目录
+          bun run scripts/pre_build.js
 
-      - name: Build Tauri MSI
+      - name: Build Tauri EXE  # 修复3：修改步骤名称，对应EXE
         run: |
           cd screenpipe-app-tauri
-          bun run tauri build --target x86_64-pc-windows-msvc -- --features msi
+          # 修复4：移除 --features msi（核心！解决msi特性报错）
+          bun run tauri build --target x86_64-pc-windows-msvc
 
-      - name: Upload MSI artifact
+      - name: Upload EXE artifact  # 修复5：修改步骤名称，对应EXE
         uses: actions/upload-artifact@v4
         with:
-          name: screenpipe2-windows-msi
-          path: screenpipe-app-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          name: screenpipe2-windows-exe  # 修复6：修改产物名称
+          # 修复7：修改产物路径（NSIS生成的EXE在windows目录下，而非msi）
+          path: screenpipe-app-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/windows/*.exe
