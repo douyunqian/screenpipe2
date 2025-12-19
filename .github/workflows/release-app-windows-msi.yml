@@ -42,7 +42,7 @@ jobs:
       - name: Run pre-build script (fix FFmpeg + copy binary)
         run: |
           cd screenpipe-app-tauri
-          bun run pre_build.js
+          bun run scripts/pre_build.js
 
       - name: Build Tauri MSI
         run: |
