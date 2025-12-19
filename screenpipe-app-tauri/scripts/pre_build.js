@@ -16,15 +16,15 @@ const platform = {
 const cwd = process.cwd()
 console.log('cwd', cwd)
 
-
+// 修复：补全 config 结构，统一 ffmpegRealname 定义
 const config = {
-	ffmpegRealname: 'ffmpeg',
-	  windows: {
-	    // 推荐使用官方镜像或稳定版本（示例：FFmpeg 7.1 版本）
-	    ffmpegUrl: "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z",
-	    ffmpegName: "ffmpeg",
-	    ffmpegRealname: "./ffmpeg.exe"
-	  }
+	ffmpegRealname: platform === 'windows' ? "./ffmpeg.exe" : 'ffmpeg',
+	windows: {
+		// 修复：替换为有效 FFmpeg 下载链接
+		ffmpegUrl: "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z",
+		ffmpegName: "ffmpeg",
+		ffmpegRealname: "./ffmpeg.exe"
+	},
 	linux: {
 		aptPackages: [
 			'tesseract-ocr',
@@ -56,16 +56,20 @@ const config = {
 		ffprobeUrlx86_64: 'https://www.osxexperts.net/ffprobe71intel.zip',
 	},
 }
-async function downloadFFmpeg() {
+
+// 修复：封装 FFmpeg 下载逻辑（含备用链接）
+async function downloadFFmpeg(wgetPath) {
   try {
+    console.log(`开始下载 FFmpeg: ${config.windows.ffmpegUrl}`);
     await $`${wgetPath} --no-config --tries=10 --retry-connrefused --waitretry=10 --secure-protocol=auto --no-check-certificate --show-progress ${config.windows.ffmpegUrl} -O ${config.windows.ffmpegName}.7z`;
   } catch (e) {
     console.error("FFmpeg 主链接下载失败，尝试备用链接...");
-    // 备用链接（如 GitHub 镜像）
+    // 备用链接（GitHub 镜像）
     const fallbackUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z";
     await $`${wgetPath} --no-config --tries=5 --show-progress ${fallbackUrl} -O ${config.windows.ffmpegName}.7z`;
   }
 }
+
 async function findWget() {
 	const possiblePaths = [
 		'C:\\ProgramData\\chocolatey\\bin\\wget.exe',
@@ -95,6 +99,8 @@ const exports = {
 	ffmpeg: path.join(cwd, config.ffmpegRealname),
 	libClang: 'C:\\Program Files\\LLVM\\bin',
 	cmake: 'C:\\Program Files\\CMake\\bin',
+	openBlas: '', // 补全缺失的变量定义
+	clblast: ''   // 补全缺失的变量定义
 }
 
 // Add this function to copy the Bun binary
@@ -205,7 +211,6 @@ async function copyBunBinary() {
 	}
 }
 
-
 // Helper function to copy file and set permissions
 async function copyFile(src, dest) {
 	await fs.copyFile(src, dest);
@@ -245,7 +250,6 @@ if (platform == 'linux') {
 		console.error("error checking/installing apt packages: %s", error.message);
 	}
 
-
 	// Copy screenpipe binary
 	console.log('copying screenpipe binary for linux...');
 	const potentialPaths = [
@@ -281,7 +285,6 @@ if (platform == 'linux') {
 		// process.exit(1);
 	}
 
-	
 	// Setup FFMPEG
 	if (!(await fs.exists(config.ffmpegRealname))) {
 		await $`wget --no-config -nc ${config.linux.ffmpegUrl} -O ${config.linux.ffmpegName}.tar.xz`
@@ -291,7 +294,7 @@ if (platform == 'linux') {
 	} else {
 		console.log('FFMPEG already exists');
 	}
-		// Setup TESSERACT
+	// Setup TESSERACT
 	if (!(await fs.exists(config.linux.tesseractName))) {
 		await $`wget --no-config -nc ${config.linux.tesseractUrl} -O ${config.linux.tesseractName}`
 		await $`chmod +x ${config.linux.tesseractName}` // Make the Tesseract binary executable
@@ -306,12 +309,19 @@ if (platform == 'windows') {
 
 	console.log('Copying screenpipe binary...');
 
+	// 修复：扩展更多合理的 screenpipe.exe 查找路径
 	const potentialPaths = [
+		// 优先查找 GitHub Actions 标准路径
+		path.join(process.env.GITHUB_WORKSPACE || '', 'target', 'release', 'screenpipe.exe'),
+		path.join(process.env.GITHUB_WORKSPACE || '', 'target', 'x86_64-pc-windows-msvc', 'release', 'screenpipe.exe'),
+		// 相对路径（兼容本地/CI）
 		path.join(__dirname, '..', '..', 'target', 'release', 'screenpipe.exe'),
 		path.join(__dirname, '..', '..', 'target', 'x86_64-pc-windows-msvc', 'release', 'screenpipe.exe'),
 		path.join(__dirname, '..', 'target', 'release', 'screenpipe.exe'),
-		path.join(__dirname, '..', '..', 'target', 'release', 'screenpipe.exe'),
+		// 旧路径兼容
 		'D:\\a\\screenpipe\\screenpipe\\target\\release\\screenpipe.exe',
+		'D:\\a\\screenpipe2\\screenpipe2\\target\\release\\screenpipe.exe',
+		'D:\\a\\screenpipe2\\screenpipe2\\target\\x86_64-pc-windows-msvc\\release\\screenpipe.exe',
 	];
 
 	let copied = false;
@@ -322,33 +332,58 @@ if (platform == 'windows') {
 		}
 		const screenpipeDest = path.join(cwd, 'screenpipe-x86_64-pc-windows-msvc.exe');
 		try {
+			// 先检查文件是否存在
+			await fs.access(screenpipeSrc);
 			await fs.copyFile(screenpipeSrc, screenpipeDest);
 			console.log(`Screenpipe binary copied successfully from ${screenpipeSrc}`);
 			copied = true;
 			break;
 		} catch (error) {
-			console.warn(`Failed to copy screenpipe binary from ${screenpipeSrc}:`, error);
+			console.warn(`Failed to copy screenpipe binary from ${screenpipeSrc}:`, error.message);
 		}
 	}
 
 	if (!copied) {
 		console.error("Failed to copy screenpipe binary from any potential path.");
-		// Uncomment the following line if you want the script to exit on failure
-		// process.exit(1);
+		console.error("Checked paths:", potentialPaths);
+		// 取消注释以强制构建失败（建议开启，避免后续步骤无意义执行）
+		process.exit(1);
 	}
 
 	// Setup FFMPEG
-// 替换原 332 行的下载逻辑为上述函数调用
-	if (!(await fs.exists(config.ffmpegRealname))) {
-	  await downloadFFmpeg();
-	  // 解压逻辑（如果原有解压步骤保留）
-	  await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg --extract-dir=./`;
-	  await fs.copyFile("./ffmpeg/bin/ffmpeg.exe", config.ffmpegRealname);
+	if (!(await fs.exists(config.windows.ffmpegRealname))) {
+	  await downloadFFmpeg(wgetPath);
+	  // 修复：完善解压逻辑，兼容不同压缩包结构
+	  try {
+	    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg --extract-dir=./`;
+	    // 兼容不同压缩包内的路径
+	    const possibleFfmpegPaths = [
+	      "./ffmpeg/bin/ffmpeg.exe",
+	      "./ffmpeg/ffmpeg.exe",
+	      `./${config.windows.ffmpegName}/bin/ffmpeg.exe`
+	    ];
+	    let ffmpegBinPath = null;
+	    for (const p of possibleFfmpegPaths) {
+	      if (await fs.exists(p)) {
+	        ffmpegBinPath = p;
+	        break;
+	      }
+	    }
+	    if (!ffmpegBinPath) {
+	      throw new Error(`FFmpeg 解压后未找到可执行文件，检查路径: ${possibleFfmpegPaths}`);
+	    }
+	    await fs.copyFile(ffmpegBinPath, config.windows.ffmpegRealname);
+	    console.log(`FFmpeg 复制成功: ${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
+	    // 清理临时文件
+	    await fs.rm("./ffmpeg", { recursive: true, force: true });
+	    await fs.rm(`${config.windows.ffmpegName}.7z`, { force: true });
+	  } catch (e) {
+	    console.error("FFmpeg 解压/复制失败:", e.message);
+	    process.exit(1);
+	  }
+	} else {
+		console.log('FFmpeg already exists, skip download');
 	}
-
-	// Setup vcpkg packages with environment variables set inline
-	// TODO is this even used? dont we use build.rs for this?
-	// await $`SystemDrive=${process.env.SYSTEMDRIVE} SystemRoot=${process.env.SYSTEMROOT} windir=${process.env.WINDIR} ${process.env.VCPKG_ROOT}\\vcpkg.exe install ${config.windows.vcpkgPackages}`.quiet()
 }
 
 async function getMostRecentBinaryPath(targetArch, paths) {
@@ -375,6 +410,7 @@ async function getMostRecentBinaryPath(targetArch, paths) {
 		current.mtime > mostRecent.mtime ? current : mostRecent
 	).path;
 }
+
 /* ########## macOS ########## */
 if (platform == 'macos') {
 	const architectures = ['arm64', 'x86_64'];
@@ -479,8 +515,6 @@ if (platform == 'macos') {
 	}
 }
 
-
-
 // Development hints
 if (!process.env.GITHUB_ENV) {
 	console.log('\nCommands to build 🔨:')
@@ -505,7 +539,7 @@ if (process.env.GITHUB_ENV) {
 		await fs.appendFile(process.env.GITHUB_ENV, ffmpeg)
 	}
 	if (platform == 'macos') {
-		const embed_metal = 'WHISPER_METAL_EMBED_LIBRARY=ON'
+		const embed_metal = 'WHISPER_METAL_EMBED_LIBRARY=ON\n' // 补全换行符，避免ENV拼接错误
 		await fs.appendFile(process.env.GITHUB_ENV, embed_metal)
 	}
 	if (platform == 'windows') {
@@ -515,13 +549,12 @@ if (process.env.GITHUB_ENV) {
 	}
 }
 
-
 // Near the end of the script, call these functions
 await copyBunBinary();
 
 // --dev or --build
 const action = process.argv?.[2]
-if (action?.includes('--build' || action.includes('--dev'))) {
+if (action?.includes('--build') || action?.includes('--dev')) { // 修复：逻辑运算符错误
 	process.chdir(path.join(cwd, '..'))
 	process.env['FFMPEG_DIR'] = exports.ffmpeg
 	if (platform === 'windows') {
