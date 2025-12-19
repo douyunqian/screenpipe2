@@ -12,10 +12,10 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
-      // 核心修改：禁用 MSI，启用 NSIS
+ 
       "installer": {
         "wix": {
-          "enabled": false, // 禁用 MSI 安装器（解决报错的关键）
+          "enabled": false, 
           "language": "en-US",
           "template": null,
           "componentGroupRefs": [],
@@ -27,7 +27,7 @@
           "skipDependencies": false
         },
         "nsis": {
-          "enabled": true, // 启用 NSIS（生成 EXE 安装包）
+          "enabled": true,
           "language": "en-US",
           "artifactName": "${productName}-${version}-setup.${ext}",
           "installerIcon": "icons/icon.ico",
@@ -43,7 +43,8 @@
           "createDesktopShortcut": true,
           "createStartMenuShortcut": true
         }
-      },
+      }
+   },
   "bundle": {
     "createUpdaterArtifacts": true,
     "active": true,
