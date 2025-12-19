@@ -285,48 +285,16 @@ if (platform == 'linux') {
 		// process.exit(1);
 	}
 
-	// Setup FFMPEG
-// Setup FFMPEG
-if (!(await fs.exists(config.windows.ffmpegRealname))) {
-  await downloadFFmpeg(wgetPath);
-  // 修复：完善解压逻辑，使用 7z 正确语法
-  try {
-    // 第一步：解压 7z 包到 ./ffmpeg 目录（7z 正确语法）
-    console.log(`开始解压 FFmpeg：7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`);
-    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`;
-    
-    // 第二步：兼容不同压缩包的目录结构，查找 ffmpeg.exe
-    const possibleFfmpegPaths = [
-      "./ffmpeg/bin/ffmpeg.exe",          // 标准结构
-      "./ffmpeg/ffmpeg.exe",              // 扁平结构
-      `./ffmpeg/${config.windows.ffmpegName}/bin/ffmpeg.exe` // 带版本号的结构
-    ];
-    let ffmpegBinPath = null;
-    for (const p of possibleFfmpegPaths) {
-      if (await fs.exists(p)) {
-        ffmpegBinPath = p;
-        break;
-      }
-    }
+	// Setup FFMPEG (Linux 原生逻辑，删除混入的 Windows 代码)
+	if (!(await fs.exists(config.ffmpegRealname))) {
+		await $`wget --no-config -nc ${config.linux.ffmpegUrl} -O ${config.linux.ffmpegName}.tar.xz`
+		await $`tar xf ${config.linux.ffmpegName}.tar.xz`
+		await $`mv ${config.linux.ffmpegName} ${config.ffmpegRealname}`
+		await $`rm ${config.linux.ffmpegName}.tar.xz`
+	} else {
+		console.log('FFMPEG already exists');
+	}
 
-    if (!ffmpegBinPath) {
-      throw new Error(`解压后未找到 ffmpeg.exe，检查路径：${possibleFfmpegPaths.join(", ")}`);
-    }
-
-    // 第三步：复制 ffmpeg.exe 到目标位置
-    await fs.copyFile(ffmpegBinPath, config.windows.ffmpegRealname);
-    console.log(`✅ FFmpeg 复制成功：${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
-
-    // 第四步：清理临时文件（可选，减少冗余）
-    await fs.rm("./ffmpeg", { recursive: true, force: true });
-    await fs.rm(`${config.windows.ffmpegName}.7z`, { force: true });
-  } catch (e) {
-    console.error("❌ FFmpeg 解压/复制失败:", e.message);
-    process.exit(1);
-  }
-} else {
-  console.log('ℹ️ FFmpeg 已存在，跳过下载/解压');
-}
 	// Setup TESSERACT
 	if (!(await fs.exists(config.linux.tesseractName))) {
 		await $`wget --no-config -nc ${config.linux.tesseractUrl} -O ${config.linux.tesseractName}`
@@ -383,17 +351,20 @@ if (platform == 'windows') {
 		process.exit(1);
 	}
 
-	// Setup FFMPEG
+	// Setup FFMPEG (修复 7z 命令，删除 --extract-dir 无效参数)
 	if (!(await fs.exists(config.windows.ffmpegRealname))) {
 	  await downloadFFmpeg(wgetPath);
-	  // 修复：完善解压逻辑，兼容不同压缩包结构
+	  // 修复：完善解压逻辑，使用 7z 正确语法
 	  try {
-	    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg --extract-dir=./`;
-	    // 兼容不同压缩包内的路径
+	    // 第一步：解压 7z 包到 ./ffmpeg 目录（7z 正确语法：-o后无空格，添加 -y 自动覆盖）
+	    console.log(`开始解压 FFmpeg：7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`);
+	    await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg -y`;
+	    
+	    // 第二步：兼容不同压缩包的目录结构，查找 ffmpeg.exe
 	    const possibleFfmpegPaths = [
-	      "./ffmpeg/bin/ffmpeg.exe",
-	      "./ffmpeg/ffmpeg.exe",
-	      `./${config.windows.ffmpegName}/bin/ffmpeg.exe`
+	      "./ffmpeg/bin/ffmpeg.exe",          // 标准结构
+	      "./ffmpeg/ffmpeg.exe",              // 扁平结构
+	      `./ffmpeg/${config.windows.ffmpegName}/bin/ffmpeg.exe` // 带版本号的结构
 	    ];
 	    let ffmpegBinPath = null;
 	    for (const p of possibleFfmpegPaths) {
@@ -402,20 +373,24 @@ if (platform == 'windows') {
 	        break;
 	      }
 	    }
+
 	    if (!ffmpegBinPath) {
-	      throw new Error(`FFmpeg 解压后未找到可执行文件，检查路径: ${possibleFfmpegPaths}`);
+	      throw new Error(`解压后未找到 ffmpeg.exe，检查路径：${possibleFfmpegPaths.join(", ")}`);
 	    }
+
+	    // 第三步：复制 ffmpeg.exe 到目标位置
 	    await fs.copyFile(ffmpegBinPath, config.windows.ffmpegRealname);
-	    console.log(`FFmpeg 复制成功: ${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
-	    // 清理临时文件
+	    console.log(`✅ FFmpeg 复制成功：${ffmpegBinPath} -> ${config.windows.ffmpegRealname}`);
+
+	    // 第四步：清理临时文件（可选，减少冗余）
 	    await fs.rm("./ffmpeg", { recursive: true, force: true });
 	    await fs.rm(`${config.windows.ffmpegName}.7z`, { force: true });
 	  } catch (e) {
-	    console.error("FFmpeg 解压/复制失败:", e.message);
+	    console.error("❌ FFmpeg 解压/复制失败:", e.message);
 	    process.exit(1);
 	  }
 	} else {
-		console.log('FFmpeg already exists, skip download');
+		console.log('ℹ️ FFmpeg 已存在，跳过下载/解压');
 	}
 }
 
