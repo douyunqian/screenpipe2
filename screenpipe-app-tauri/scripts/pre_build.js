@@ -56,7 +56,16 @@ const config = {
 		ffprobeUrlx86_64: 'https://www.osxexperts.net/ffprobe71intel.zip',
 	},
 }
-
+async function downloadFFmpeg() {
+  try {
+    await $`${wgetPath} --no-config --tries=10 --retry-connrefused --waitretry=10 --secure-protocol=auto --no-check-certificate --show-progress ${config.windows.ffmpegUrl} -O ${config.windows.ffmpegName}.7z`;
+  } catch (e) {
+    console.error("FFmpeg 主链接下载失败，尝试备用链接...");
+    // 备用链接（如 GitHub 镜像）
+    const fallbackUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.7z";
+    await $`${wgetPath} --no-config --tries=5 --show-progress ${fallbackUrl} -O ${config.windows.ffmpegName}.7z`;
+  }
+}
 async function findWget() {
 	const possiblePaths = [
 		'C:\\ProgramData\\chocolatey\\bin\\wget.exe',
@@ -329,11 +338,12 @@ if (platform == 'windows') {
 	}
 
 	// Setup FFMPEG
+// 替换原 332 行的下载逻辑为上述函数调用
 	if (!(await fs.exists(config.ffmpegRealname))) {
-		await $`${wgetPath} --no-config --tries=10 --retry-connrefused --waitretry=10 --secure-protocol=auto --no-check-certificate --show-progress ${config.windows.ffmpegUrl} -O ${config.windows.ffmpegName}.7z`
-		await $`'C:\\Program Files\\7-Zip\\7z.exe' x ${config.windows.ffmpegName}.7z`
-		await $`mv ${config.windows.ffmpegName} ${config.ffmpegRealname}`
-		await $`rm -rf ${config.windows.ffmpegName}.7z`
+	  await downloadFFmpeg();
+	  // 解压逻辑（如果原有解压步骤保留）
+	  await $`7z x ${config.windows.ffmpegName}.7z -o./ffmpeg --extract-dir=./`;
+	  await fs.copyFile("./ffmpeg/bin/ffmpeg.exe", config.ffmpegRealname);
 	}
 
 	// Setup vcpkg packages with environment variables set inline
