@@ -88,8 +88,7 @@ jobs:
         env:
           # ========== 修复点4：指定 FFmpeg 路径，禁用自动下载 ==========
           SCREENPIPE_FFMPEG_PATH: ${{ github.workspace }}\screenpipe-app-tauri\src-tauri\ffmpeg.exe
-          # 禁用模型自动下载，使用预下载的本地模型
-          SCREENPIPE_WHISPER_MODEL: "$env:LOCALAPPDATA\screenpipe\models\whisper\ggml-tiny-q8_0.bin"
+
           # 静默构建，避免交互
           TAURI_PRINT_CONFIG: 'false'
 
