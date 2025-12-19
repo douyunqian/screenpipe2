@@ -8,6 +8,42 @@
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000"
   },
+   "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      // 核心修改：禁用 MSI，启用 NSIS
+      "installer": {
+        "wix": {
+          "enabled": false, // 禁用 MSI 安装器（解决报错的关键）
+          "language": "en-US",
+          "template": null,
+          "componentGroupRefs": [],
+          "featureGroupRefs": [],
+          "componentRefs": [],
+          "featureRefs": [],
+          "extensions": [],
+          "fragmentPaths": [],
+          "skipDependencies": false
+        },
+        "nsis": {
+          "enabled": true, // 启用 NSIS（生成 EXE 安装包）
+          "language": "en-US",
+          "artifactName": "${productName}-${version}-setup.${ext}",
+          "installerIcon": "icons/icon.ico",
+          "uninstallerIcon": "icons/icon.ico",
+          "banner": null,
+          "sidebar": null,
+          "license": null,
+          "oneClick": false,
+          "perMachine": false,
+          "allowElevation": true,
+          "allowDowngrades": false,
+          "shortcutDestination": "ProgramMenuFolder",
+          "createDesktopShortcut": true,
+          "createStartMenuShortcut": true
+        }
+      },
   "bundle": {
     "createUpdaterArtifacts": true,
     "active": true,
