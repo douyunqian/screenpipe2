@@ -1,164 +1,110 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "screenpipe",
-  "identifier": "screenpi.pe",
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build",
-    "frontendDist": "../out",
-    "devUrl": "http://localhost:3000"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist",
+    "withGlobalTauri": false
   },
-   "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": "",
- 
-      "installer": {
-        "wix": {
-          "enabled": false, 
-          "language": "en-US",
-          "template": null,
-          "componentGroupRefs": [],
-          "featureGroupRefs": [],
-          "componentRefs": [],
-          "featureRefs": [],
-          "extensions": [],
-          "fragmentPaths": [],
-          "skipDependencies": false
-        },
-        "nsis": {
-          "enabled": true,
-          "language": "en-US",
-          "artifactName": "${productName}-${version}-setup.${ext}",
-          "installerIcon": "icons/icon.ico",
-          "uninstallerIcon": "icons/icon.ico",
-          "banner": null,
-          "sidebar": null,
-          "license": null,
-          "oneClick": false,
-          "perMachine": false,
-          "allowElevation": true,
-          "allowDowngrades": false,
-          "shortcutDestination": "ProgramMenuFolder",
-          "createDesktopShortcut": true,
-          "createStartMenuShortcut": true
-        }
+  "package": {
+    "productName": "Screenpipe",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "all": true,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "createDir": true,
+        "exists": true
+      },
+      "process": {
+        "all": true,
+        "exit": true,
+        "relaunch": true,
+        "kill": true
+      },
+      "shell": {
+        "all": true,
+        "execute": true,
+        "open": true
+      },
+      "window": {
+        "all": true,
+        "create": true,
+        "center": true,
+        "requestUserAttention": true
+      },
+      "clipboard": {
+        "all": true,
+        "writeText": true,
+        "readText": true
+      },
+      "os": {
+        "all": true,
+        "arch": true,
+        "platform": true,
+        "tempdir": true
+      },
+      "path": {
+        "all": true,
+        "resolve": true,
+        "join": true
       }
-   },
-  "bundle": {
-    "createUpdaterArtifacts": true,
-    "active": true,
-    "category": "DeveloperTool",
-    "copyright": "",
-    "targets": [
-      "app",
-      "dmg",
-      "deb",
-      "appimage",
-      "nsis"
-    ],
-    "externalBin": [],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/256x256.png",
-      "icons/512x512.png",
-      "icons/1024x1024.png",
-      "icons/icon.icns",
-      "icons/icon.ico",
-      "icons/screenpipe-logo-tray-failed.png",
-      "icons/screenpipe-logo-tray-black.png"
-    ],
-    "resources": [
-      "assets/*"
-    ]
-  },
-  "plugins": {
-    "updater": {
+    },
+    "bundle": {
       "active": true,
-      "dialog": true,
-      "endpoints": [
-        "https://cdn.crabnebula.app/update/mediar/screenpipe/{{target}}-{{arch}}/{{current_version}}"
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyQjQ2RkQzMUNBOUFDMTcKUldRWHJLa2MwMiswSWl3RlBGUW5zYUE0Zm0vNFFRRTltNUZZTUVxR2FxUDNtSWdUSHgyL3JNcmcK"
-    },
-    "deep-link": {
-      "desktop": {
-        "schemes": [
-          "screenpipe"
-        ]
+      "identifier": "com.screenpipe.app",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
       },
-      "mobile": [
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/auth"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/stripe-connect"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/purchase-successful"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/settings"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/changelog"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/onboarding"
-          ]
-        },
-        {
-          "host": "screenpi.pe",
-          "pathPrefix": [
-            "/status"
-          ]
+      "resources": [],
+      "shortDescription": "",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "wix": {
+          "language": "en-US",
+          "template": null
         }
-      ]
-    }
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "trayIcon": {
-      "id": "screenpipe_main",
-      "iconPath": "assets/screenpipe-logo-tray-white.png",
-      "iconAsTemplate": true
-    },
-    "windows": [
-      {
-        "title": "screenpipe",
-        "width": 1200,
-        "height": 850,
-        "resizable": true
       }
-    ],
-    "security": {
-      "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "$APPDATA/**"
-        ]
-      },
-      "csp": null
     },
-    "macOSPrivateApi": true
+    // ✅ 核心修复：将复数 windows 改为单数 window，且从数组改为对象
+    "window": {
+      "title": "Screenpipe",
+      "width": 1200,
+      "height": 800,
+      "resizable": true,
+      "fullscreen": false,
+      "decorations": true,
+      "center": true
+    },
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
+    }
   }
 }
