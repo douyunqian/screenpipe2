@@ -1,110 +1,112 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  // ✅ 修复：补充必填的 identifier（Tauri v2 根级必填）
+  "identifier": "com.screenpipe.app",
+  "productName": "Screenpipe",
+  "version": "0.1.0",
+  // ✅ 修复：Tauri v2 的 build 结构（移除不合法字段，调整 frontend 子节点）
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": false
-  },
-  "package": {
-    "productName": "Screenpipe",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "fs": {
-        "all": true,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "createDir": true,
-        "exists": true
-      },
-      "process": {
-        "all": true,
-        "exit": true,
-        "relaunch": true,
-        "kill": true
-      },
-      "shell": {
-        "all": true,
-        "execute": true,
-        "open": true
-      },
-      "window": {
-        "all": true,
-        "create": true,
-        "center": true,
-        "requestUserAttention": true
-      },
-      "clipboard": {
-        "all": true,
-        "writeText": true,
-        "readText": true
-      },
-      "os": {
-        "all": true,
-        "arch": true,
-        "platform": true,
-        "tempdir": true
-      },
-      "path": {
-        "all": true,
-        "resolve": true,
-        "join": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "com.screenpipe.app",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "wix": {
-          "language": "en-US",
-          "template": null
-        }
-      }
-    },
-    // ✅ 核心修复：将复数 windows 改为单数 window，且从数组改为对象
-    "window": {
-      "title": "Screenpipe",
-      "width": 1200,
-      "height": 800,
-      "resizable": true,
-      "fullscreen": false,
-      "decorations": true,
-      "center": true
-    },
-    "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
+    "frontend": {
+      "devUrl": "http://localhost:1420", // ✅ 替换 v1 的 devPath 为 v2 的 devUrl
+      "distDir": "../dist"              // ✅ distDir 移到 frontend 下
     }
+  },
+  // ✅ 修复：窗口配置（v2 仍为 window 单数）
+  "window": {
+    "title": "Screenpipe",
+    "width": 1200,
+    "height": 800,
+    "resizable": true,
+    "fullscreen": false,
+    "decorations": true,
+    "center": true
+  },
+  // ✅ 修复：权限白名单（v2 结构调整）
+  "allowlist": {
+    "all": false,
+    "fs": {
+      "all": true,
+      "readFile": true,
+      "writeFile": true,
+      "readDir": true,
+      "createDir": true,
+      "exists": true
+    },
+    "process": {
+      "all": true,
+      "exit": true,
+      "relaunch": true,
+      "kill": true
+    },
+    "shell": {
+      "all": true,
+      "execute": true,
+      "open": true
+    },
+    "window": {
+      "all": true,
+      "create": true,
+      "center": true,
+      "requestUserAttention": true
+    },
+    "clipboard": {
+      "all": true,
+      "writeText": true,
+      "readText": true
+    },
+    "os": {
+      "all": true,
+      "arch": true,
+      "platform": true,
+      "tempdir": true
+    },
+    "path": {
+      "all": true,
+      "resolve": true,
+      "join": true
+    }
+  },
+  // ✅ 修复：打包配置（v2 结构调整，移除多余嵌套）
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "",
+    "deb": {
+      "depends": []
+    },
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [],
+    "shortDescription": "",
+    "targets": "all",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": "en-US",
+        "template": null
+      }
+    }
+  },
+  // ✅ 修复：安全策略（v2 结构调整）
+  "security": {
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
   }
 }
