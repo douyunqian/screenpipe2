@@ -1,19 +1,19 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  // ✅ 修复：补充必填的 identifier（Tauri v2 根级必填）
+
   "identifier": "com.screenpipe.app",
   "productName": "Screenpipe",
   "version": "0.1.0",
-  // ✅ 修复：Tauri v2 的 build 结构（移除不合法字段，调整 frontend 子节点）
+
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "frontend": {
-      "devUrl": "http://localhost:1420", // ✅ 替换 v1 的 devPath 为 v2 的 devUrl
-      "distDir": "../dist"              // ✅ distDir 移到 frontend 下
+      "devUrl": "http://localhost:1420",
+      "distDir": "../dist"             
     }
   },
-  // ✅ 修复：窗口配置（v2 仍为 window 单数）
+ 
   "window": {
     "title": "Screenpipe",
     "width": 1200,
@@ -23,7 +23,7 @@
     "decorations": true,
     "center": true
   },
-  // ✅ 修复：权限白名单（v2 结构调整）
+
   "allowlist": {
     "all": false,
     "fs": {
