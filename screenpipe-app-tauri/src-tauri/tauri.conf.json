@@ -7,17 +7,15 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
-  "windows": [
-    {
-      "title": "Screenpipe",
-      "width": 1200,
-      "height": 800,
-      "resizable": true,
-      "fullscreen": false,
-      "decorations": true,
-      "center": true
-    }
-  ],
+  "window": {
+    "title": "Screenpipe",
+    "width": 1200,
+    "height": 800,
+    "resizable": true,
+    "fullscreen": false,
+    "decorations": true,
+    "center": true
+  },
   "bundle": {
     "active": true,
     "category": "DeveloperTool",
